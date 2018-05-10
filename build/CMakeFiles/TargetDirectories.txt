@@ -1,0 +1,3 @@
+/home/wxrui/Watermark/build/CMakeFiles/rebuild_cache.dir
+/home/wxrui/Watermark/build/CMakeFiles/edit_cache.dir
+/home/wxrui/Watermark/build/CMakeFiles/Watermark.dir

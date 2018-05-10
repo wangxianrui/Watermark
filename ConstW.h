@@ -10,10 +10,10 @@
 #define RSLENGTH (WKLENGTH+NPAR*8)
 #define FINGERLIB 256
 #define FINGERLENGTH (RSLENGTH/4)*FINGERLIB
-#define INSPOSITION 10000
+#define INSPOSITION 1000
+#define STANDW 1024
+#define STANDH 512
+#define ALPHA 3
 
-const int standW = 1024;
-const int standH = 1024;
-const float alpha = 2.5;
 
 #endif //IMAGEMARK_CONSTW_H

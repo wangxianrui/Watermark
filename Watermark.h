@@ -13,24 +13,27 @@ using namespace cv;
 
 class Watermark {
 public:
-    Watermark(string wkfile);
+    ///初始化水印嵌入检测工具 fingerLibfile:指纹库  wkfile:指纹文件
+    Watermark(string fingerLibfile = "fingerLib", string wkfile = "wk");
 
-    void imageInsert(string srcfile, string dstfile);
+    ///指纹嵌入操作 imgMat:待嵌入图像 addLocate:是否添加定位点
+    void imageInsert(Mat &imgMat, bool addLocate = false);
 
-    float detectBlind(string dstfile);
+    ///指纹检测操作 imgMat:待检测图像
+    float detectBlind(Mat imgMat, float prev_detect = 0);
 
-    float getPSNR(string srcfile, string dstfile);
+    ///原图像和带水印图像PSNR
+    float getPSNR(Mat srcMat, Mat dstMat);
 
 private:
     float *wk;
     float **fingerLib;
-    Rect rect;
+    Rect RECT;
+    int ROTATE;
 
-    bool getWK(string wkfile);
+    bool getWK(string wkfile = "wk");
 
-    bool getFingerLib();
-
-    void getBorder(Mat srcImg, int thres);
+    bool getFingerLib(string fingerLibfile = "fingerLib");
 
     float distance(float *ori, float *ext, int len);
 
@@ -53,6 +56,22 @@ private:
     void zigZag(float *tarMat, float *srcMat, int width, int height);
 
     void izigZag(float *tarMat, float *srcMat, int width, int height);
+
+    void creatLocate(Mat &img, int len);
+
+    void getPoints(Mat imgMat, vector<Point> &points);
+
+    void getRotate(vector<Point2f> points);
+
+    void getRect(vector<Point2f> points);
+
+    static Point Center_cal(vector<vector<Point> > contours, int i);
+
+    static bool sortPoint(const Point point1, const Point point2);
+
+    float detectMat(Mat img);
+
+    void insertMat(Mat &img);
 };
 
 

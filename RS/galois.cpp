@@ -52,7 +52,7 @@ static void init_exp_table (void);
 void
 init_galois_tables (void)
 {	
-  /* initialize the table of powers of alpha */
+  /* initialize the table of powers of ALPHA */
   init_exp_table();
 }
 

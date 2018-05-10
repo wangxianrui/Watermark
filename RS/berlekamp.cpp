@@ -227,7 +227,7 @@ static void mul_z_poly (int src[])
 
 
 /* Finds all the roots of an error-locator polynomial with coefficients
- * Lambda[j] by evaluating Lambda at successive values of alpha. 
+ * Lambda[j] by evaluating Lambda at successive values of ALPHA.
  * 
  * This can be tested with the decoder's equations case.
  */
@@ -260,7 +260,7 @@ Find_Roots (void)
  * of these erasures.
  * 
  * Evaluate Omega(actually Psi)/Lambda' at the roots
- * alpha^(-i) for error locs i. 
+ * ALPHA^(-i) for error locs i.
  *
  * Returns 1 if everything ok, or 0 if an out-of-bounds error is found
  *
@@ -297,13 +297,13 @@ correct_errors_erasures (unsigned char codeword[],
     for (r = 0; r < NErrors; r++) {
       int num, denom;
       i = ErrorLocs[r];
-      /* evaluate Omega at alpha^(-i) */
+      /* evaluate Omega at ALPHA^(-i) */
 
       num = 0;
       for (j = 0; j < MAXDEG; j++) 
 	num ^= gmult(Omega[j], gexp[((255-i)*j)%255]);
       
-      /* evaluate Lambda' (derivative) at alpha^(-i) ; all odd powers disappear */
+      /* evaluate Lambda' (derivative) at ALPHA^(-i) ; all odd powers disappear */
       denom = 0;
       for (j = 1; j < MAXDEG; j += 2) {
 	denom ^= gmult(Lambda[j], gexp[((255-i)*(j-1)) % 255]);

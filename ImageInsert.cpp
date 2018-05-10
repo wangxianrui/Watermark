@@ -3,23 +3,37 @@
 //
 #include <iostream>
 #include <opencv/cv.h>
-#include <opencv/highgui.h>
 #include "Watermark.h"
 #include "ConstW.h"
 #include "RS/ecc.h"
+#include "QR/qrReader.h"
 
 using namespace std;
 using namespace cv;
 
-void Watermark::imageInsert(string srcfile, string dstfile) {
-    //Ypart 0 单通道
-    Mat imgMat = imread(srcfile, 0);
-    if (imgMat.empty())
-        cout << "read picture error" << endl;
-    imgMat.convertTo(imgMat, CV_32F);
-    int height = imgMat.rows;
-    int width = imgMat.cols;
-    float *Ypart = (float *) imgMat.data;
+void Watermark::imageInsert(Mat &imgMat, bool addLocate) {
+    if (imgMat.channels() != 1)
+        return;
+    if (addLocate || RECT.area() == 0) {
+        int modelSize = 4;
+        qrReader reader;
+        reader.addPattern(imgMat, modelSize);
+        RECT.x = 0.1 * imgMat.cols + modelSize * 9 / 2;
+        RECT.y = 0.1 * imgMat.rows + modelSize * 9 / 2;
+        RECT.width = ceil(0.8 * imgMat.cols - modelSize * 9);
+        RECT.height = ceil(0.8 * imgMat.rows - modelSize * 9);
+    }
+    Mat img;
+    img = imgMat(RECT).clone();
+    insertMat(img);
+    img.copyTo(imgMat(RECT));
+}
+
+void Watermark::insertMat(Mat &img) {
+    int width = img.cols;
+    int height = img.rows;
+    img.convertTo(img, CV_32F);
+    float *Ypart = (float *) img.data;
     /****************wk --> rsCode****************************************/
     float *rsCode = new float[RSLENGTH];
     unsigned char inputarr[WKLENGTH];
@@ -32,13 +46,13 @@ void Watermark::imageInsert(string srcfile, string dstfile) {
         rsCode[i] = code[i] - '0';
     /****************wk --> rsCode****************************************/
     float *finger = new float[FINGERLENGTH];
-    selectFinger(imgMat, rsCode, finger);
+    selectFinger(img, rsCode, finger);
     //wkTemplate h*w
     float *wkTemplate = new float[width * height];
     getTemplate(Ypart, finger, wkTemplate, width, height);
     doInsert(Ypart, wkTemplate, width, height);
-    imgMat.convertTo(imgMat, CV_8U);
-    imwrite(dstfile, imgMat);
+    img.convertTo(img, CV_8U);
+
     delete[] rsCode;
     delete[] finger;
     delete[] wkTemplate;
@@ -47,11 +61,11 @@ void Watermark::imageInsert(string srcfile, string dstfile) {
 void Watermark::selectFinger(Mat imgMat, float *rsCode, float *finger) {
     //dct zigzag
     Mat dctMat = imgMat.clone();
-    resize(dctMat, dctMat, Size(standW, standH));
+    resize(dctMat, dctMat, Size(STANDW, STANDH));
     dct(dctMat, dctMat);
     float *dctYpart = (float *) dctMat.data;
-    float *zigDct = new float[standW * standH];
-    zigZag(zigDct, dctYpart, standW, standH);
+    float *zigDct = new float[STANDW * STANDH];
+    zigZag(zigDct, dctYpart, STANDW, STANDH);
     //finger
     int group;
     float *sim = new float[32];
@@ -78,13 +92,13 @@ void Watermark::selectFinger(Mat imgMat, float *rsCode, float *finger) {
 
 void Watermark::getTemplate(float *Ypart, float *finger, float *wkTemplate, int width, int height) {
     //在嵌入位置插入指纹
-    float *wkfinger = new float[standW * standH];
-    memset(wkfinger, 0, sizeof(float) * standW * standH);
+    float *wkfinger = new float[STANDW * STANDH];
+    memset(wkfinger, 0, sizeof(float) * STANDW * STANDH);
     memcpy(wkfinger + INSPOSITION, finger, sizeof(float) * FINGERLENGTH);
     //izigzag
-    float *fingerM = new float[standW * standH];
-    izigZag(fingerM, wkfinger, standW, standH);
-    Mat fingerMat(standH, standW, CV_32FC1);
+    float *fingerM = new float[STANDW * STANDH];
+    izigZag(fingerM, wkfinger, STANDW, STANDH);
+    Mat fingerMat(STANDH, STANDW, CV_32FC1);
     fingerMat.data = (uchar *) fingerM;
     idct(fingerMat, fingerMat);
     resize(fingerMat, fingerMat, Size(width, height));
@@ -93,7 +107,7 @@ void Watermark::getTemplate(float *Ypart, float *finger, float *wkTemplate, int 
     for (int i = 0; i < height; i++)
         for (int j = 0; j < width; j++)
             wkTemplate[i * width + j] =
-                    alpha * (17 * (1 - nvf[i * width + j]) + 3 * nvf[i * width + j]) * fingerMat.at<float>(i, j);
+                    ALPHA * (17 * (1 - nvf[i * width + j]) + 3 * nvf[i * width + j]) * fingerMat.at<float>(i, j);
     delete[] wkfinger;
     delete[] nvf;
     delete[] fingerM;
@@ -178,8 +192,36 @@ void Watermark::doInsert(float *Ypart, float *temeplate, int width, int height) 
     for (int i = 0; i < height; i++) {
         for (int j = 0; j < width; j++) {
             Ypart[i * width + j] += temeplate[i * width + j];
+//            Ypart[i * width + j] = 0;
         }
     }
 }
 
+void Watermark::creatLocate(Mat &img, int len) {
+    img = Mat::zeros(7 * len, 7 * len, CV_8UC1);
+    for (int i = 0 * len; i < 1 * len; i++)
+        for (int j = 0 * len; j < 7 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 6 * len; i < 7 * len; i++)
+        for (int j = 0 * len; j < 7 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 0 * len; i < 7 * len; i++)
+        for (int j = 0 * len; j < 1 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 0 * len; i < 7 * len; i++)
+        for (int j = 6 * len; j < 7 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 2 * len; i < 3 * len; i++)
+        for (int j = 2 * len; j < 5 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 4 * len; i < 5 * len; i++)
+        for (int j = 2 * len; j < 5 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 2 * len; i < 5 * len; i++)
+        for (int j = 2 * len; j < 3 * len; j++)
+            img.at<char>(i, j) = 255;
+    for (int i = 2 * len; i < 5 * len; i++)
+        for (int j = 4 * len; j < 5 * len; j++)
+            img.at<char>(i, j) = 255;
+}
 

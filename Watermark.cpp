@@ -5,17 +5,19 @@
 #include <fstream>
 #include <math.h>
 #include <cstring>
-#include <ctime>
+#include <opencv/highgui.h>
 #include "Watermark.h"
 #include "ConstW.h"
 
-Watermark::Watermark(string wkfile) {
+Watermark::Watermark(string fingerLibfile, string wkfile) {
     wk = new float[WKLENGTH];
     fingerLib = new float *[2 * FINGERLIB];
     for (int i = 0; i < 2 * FINGERLIB; i++)
         fingerLib[i] = new float[FINGERLIB];
     getWK(wkfile);
-    getFingerLib();
+    getFingerLib(fingerLibfile);
+    ROTATE = 0;
+    RECT = Rect(0, 0, 0, 0);
 }
 
 //提取原始水印 128
@@ -32,8 +34,8 @@ bool Watermark::getWK(string wkfile) {
 }
 
 //读取指纹库
-bool Watermark::getFingerLib() {
-    ifstream input("fingerLib.txt");
+bool Watermark::getFingerLib(string fingerLibfile) {
+    ifstream input(fingerLibfile);
     if (!input) {
         return false;
     }
@@ -42,63 +44,6 @@ bool Watermark::getFingerLib() {
             input >> *(fingerLib[i] + j);
     input.close();
     return true;
-}
-
-void Watermark::getBorder(Mat srcImg, int thres) {
-    srcImg.convertTo(srcImg, CV_32F);
-    int height = srcImg.rows;
-    int width = srcImg.cols;
-//    left and right
-    int left = -1, right = width;
-    int cLeft, cRight;
-    for (int i = height / 4; i < height; i += height / 4) {
-        cLeft = -1;
-        cRight = width;
-        for (int j = 0; j < width; j++)
-            if (srcImg.at<float>(i, j) < thres)
-                cLeft++;
-            else
-                break;
-        for (int j = width - 1; j > -1; j--)
-            if (srcImg.at<float>(i, j) < thres)
-                cRight--;
-            else
-                break;
-        if (left == -1) left = cLeft;
-        if (left > cLeft) left = cLeft;
-        if (right = width) right = cRight;
-        if (right < cRight) right = cRight;
-    }
-    if (left == -1) left = 0;
-    if (right == width) right = width - 1;
-//    up and down
-    int up = -1, down = height;
-    int cUp, cDown;
-    for (int i = width / 4; i < width; i += width / 4) {
-        cUp = -1;
-        cDown = height;
-        for (int j = 0; j < height; j++)
-            if (srcImg.at<float>(j, i) < thres)
-                cUp++;
-            else
-                break;
-        for (int j = height - 1; j > -1; j--)
-            if (srcImg.at<float>(j, i) < thres)
-                cDown--;
-            else
-                break;
-        if (up == -1) up = cUp;
-        if (up > cUp) up = cUp;
-        if (down = height) down = cDown;
-        if (down < cDown) down = cDown;
-    }
-    if (up == -1) up = 0;
-    if (down == height) down = height - 1;
-//    Border
-    rect.x = left;
-    rect.y = up;
-    rect.width = right - left;
-    rect.height = down - up;
 }
 
 //计算相关值sim
@@ -252,4 +197,97 @@ float Watermark::distance(float *ori, float *ext, int len) {
     res = 1 - sqrtf(sum) / sqrtf(len);
     return res;
 }
+
+Point Watermark::Center_cal(vector<vector<Point> > contours, int i) {
+    int centerx = 0, centery = 0, n = contours[i].size();
+    for (int j = 0; j < n; j++) {
+        centerx += contours[i][j].x;
+        centery += contours[i][j].y;
+    }
+    return Point(centerx / n, centery / n);
+}
+
+bool Watermark::sortPoint(const Point point1, const Point point2) {
+    if (abs(point1.x - point2.x) > 10)
+        return point1.x < point2.x;
+    else
+        return point1.y < point2.y;
+}
+
+void Watermark::getPoints(Mat imgMat, vector<Point> &points) {
+    points.clear();
+    if (imgMat.channels() != 1)
+        cvtColor(imgMat, imgMat, CV_BGR2GRAY);
+    Mat gb;
+    GaussianBlur(imgMat, gb, Size(3, 3), 0); ///gaussianblur
+    Mat binary;
+    adaptiveThreshold(gb, binary, 255, CV_ADAPTIVE_THRESH_GAUSSIAN_C, CV_THRESH_BINARY, 41, 0);
+    Mat edges;
+    Canny(binary, edges, 100, 200);
+    vector<vector<Point> > contours;
+    vector<Vec4i> hierarchy;
+    findContours(edges, contours, hierarchy, RETR_TREE, CV_CHAIN_APPROX_NONE);
+    vector<int> found;
+    int k, c, k_temp;
+    for (int i = contours.size() - 1; i >= 0; i--) {
+        k = i;
+        c = 0;
+        //不包含其他轮廓
+        if (hierarchy[k][2] == -1) {
+            //父轮廓存在
+            while (hierarchy[k][3] != -1) {
+                k_temp = k;
+                k = hierarchy[k][3];
+                if (k != k_temp - 1) break;
+                c++;
+                if (c >= 5) {
+                    found.push_back(k);
+                    break;
+                }
+            }
+        }
+    }
+    if (found.size() == 3) {
+        for (int i = 0; i < found.size(); i++)
+            points.push_back(Center_cal(contours, found[i]));
+        sort(points.begin(), points.end(), sortPoint);
+        ///3个直角定位点
+        if ((abs(points[0].x - points[1].x) < 10 &&
+             (abs(points[2].y - points[0].y) < 10 || abs(points[2].y - points[1].y) < 10)) ||
+            (abs(points[1].x - points[2].x) < 10 &&
+             (abs(points[0].y - points[1].y) < 10 || abs(points[0].y - points[2].y) < 10))) {
+            return;
+        } else
+            points.clear();
+    }
+
+}
+
+void Watermark::getRotate(vector<Point2f> points) {
+    if (points.size() != 3)
+        return;
+    if (abs(points[0].x - points[1].x) < 10) {
+        if (abs(points[0].y - points[2].y) < 10)
+            ROTATE = 0;
+        else
+            ROTATE = 90;
+    } else {
+        if (abs(points[0].y - points[2].y) < 10)
+            ROTATE = 180;
+        else
+            ROTATE = 270;
+    }
+    cout << ROTATE << endl;
+}
+
+void Watermark::getRect(vector<Point2f> points) {
+    if (points.size() != 3)
+        return;
+    RECT.x = min(min(points[0].x, points[1].x), points[2].x);
+    RECT.y = min(min(points[0].y, points[1].y), points[2].y);
+    RECT.width = abs(points[0].x - points[2].x);
+    RECT.height = max(abs(points[0].y - points[1].y), abs(points[0].y - points[2].y));
+    cout << RECT << endl;
+}
+
 
