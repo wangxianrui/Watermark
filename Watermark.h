@@ -57,14 +57,6 @@ private:
 
     void izigZag(float *tarMat, float *srcMat, int width, int height);
 
-    void creatLocate(Mat &img, int len);
-
-    void getPoints(Mat imgMat, vector<Point> &points);
-
-    void getRotate(vector<Point2f> points);
-
-    void getRect(vector<Point2f> points);
-
     static Point Center_cal(vector<vector<Point> > contours, int i);
 
     static bool sortPoint(const Point point1, const Point point2);
