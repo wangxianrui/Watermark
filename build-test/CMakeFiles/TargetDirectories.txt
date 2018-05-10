@@ -1,3 +1,0 @@
-/home/wxrui/PRO/clionPRO/Watermark2.0/build-test/CMakeFiles/edit_cache.dir
-/home/wxrui/PRO/clionPRO/Watermark2.0/build-test/CMakeFiles/rebuild_cache.dir
-/home/wxrui/PRO/clionPRO/Watermark2.0/build-test/CMakeFiles/Watermark.dir
