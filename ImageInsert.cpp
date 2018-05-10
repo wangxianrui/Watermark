@@ -196,32 +196,3 @@ void Watermark::doInsert(float *Ypart, float *temeplate, int width, int height) 
         }
     }
 }
-
-void Watermark::creatLocate(Mat &img, int len) {
-    img = Mat::zeros(7 * len, 7 * len, CV_8UC1);
-    for (int i = 0 * len; i < 1 * len; i++)
-        for (int j = 0 * len; j < 7 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 6 * len; i < 7 * len; i++)
-        for (int j = 0 * len; j < 7 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 0 * len; i < 7 * len; i++)
-        for (int j = 0 * len; j < 1 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 0 * len; i < 7 * len; i++)
-        for (int j = 6 * len; j < 7 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 2 * len; i < 3 * len; i++)
-        for (int j = 2 * len; j < 5 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 4 * len; i < 5 * len; i++)
-        for (int j = 2 * len; j < 5 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 2 * len; i < 5 * len; i++)
-        for (int j = 2 * len; j < 3 * len; j++)
-            img.at<char>(i, j) = 255;
-    for (int i = 2 * len; i < 5 * len; i++)
-        for (int j = 4 * len; j < 5 * len; j++)
-            img.at<char>(i, j) = 255;
-}
-

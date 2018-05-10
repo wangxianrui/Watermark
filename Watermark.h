@@ -57,10 +57,6 @@ private:
 
     void izigZag(float *tarMat, float *srcMat, int width, int height);
 
-    static Point Center_cal(vector<vector<Point> > contours, int i);
-
-    static bool sortPoint(const Point point1, const Point point2);
-
     float detectMat(Mat img);
 
     void insertMat(Mat &img);
